@@ -1,0 +1,4 @@
+*.exe
+*.tfvars
+*.log
+*.tfstate*

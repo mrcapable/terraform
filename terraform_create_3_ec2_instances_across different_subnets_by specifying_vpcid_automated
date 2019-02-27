@@ -1,0 +1,62 @@
+# Create 3 ec2 instances with my named ami olalinux image across different subnets 
+#  with subnet_ids extracted from the vpc_id
+
+# Variables
+variable "aws_access_key"  {}
+variable "aws_secret_key"  {}
+variable "private_key_path" {}
+variable "key_name" {
+    default = "keyAWS"
+}
+variable "azs" {
+  description = "Run the EC2 Instances in these Availability Zones"
+  type = "list"
+  default = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
+
+# Providers
+provider "aws" {
+    access_key = "${var.aws_access_key}"
+    secret_key = "${var.aws_secret_key}"
+  region = "eu-west-2"
+}
+
+
+data "aws_ami" "ami_image" {
+  # most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["olalinux"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  owners = ["260608527087"] 
+}
+
+data "aws_availability_zones" "azs" {}
+
+data "aws_subnet_ids" "subs" {   #list of subnet ids using vpc_id
+    vpc_id="vpc-006d7ee9f9aea7391"
+}
+
+resource "aws_instance" "Vm" {
+  count =3 #number of ec2 instances to create 
+  ami           = "${data.aws_ami.ami_image.id}"
+  instance_type = "t2.micro"
+  subnet_id = "${data.aws_subnet_ids.subs.ids[count.index]}"
+  key_name      = "${var.key_name}"
+  associate_public_ip_address = true
+  security_groups = ["sg-06b384b586eb6882f","sg-048310d37d4d554ed"]
+  connection {
+      user      = "ec2-user"
+      private_key = "${file(var.private_key_path)}"
+  tags {
+    Name = "v10${count.index}"  #variable names
+  }
+  }}
