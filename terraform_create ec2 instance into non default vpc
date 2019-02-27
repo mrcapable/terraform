@@ -1,7 +1,7 @@
 # Create a new ec2 instance with my named ami olalinux image 
 #  on a t2.micro node with an AWS Tag naming it "v10"
 
-# Variables
+# Variabless
 variable "aws_access_key"  {}
 variable "aws_secret_key"  {}
 variable "private_key_path" {}
