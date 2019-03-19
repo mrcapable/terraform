@@ -10,6 +10,7 @@ variable "vpc_name"  {}
 variable "subnet_names" {
   type = "list"
 }
+
 variable "subnet_cidr_block" {
   type = "list"
 }
@@ -23,6 +24,15 @@ provider "aws" {
     access_key = "${var.aws_access_key}"
     secret_key = "${var.aws_secret_key}"
   region = "eu-west-2"
+}
+
+
+data "aws_subnet_ids" "GetPublicSubnetDetails" {
+vpc_id = "${aws_vpc.CreateVPC.id}"
+depends_on = ["aws_subnet.CreateSub"]
+tags = {
+    Name = "${var.subnet_names[0]}"
+  }
 }
 
 # Resources
@@ -44,8 +54,8 @@ cidr_block        = "${var.subnet_cidr_block[count.index]}"  # cidr block from s
 
   tags {
     Name = "${var.subnet_names[count.index]}" 
-}}
-
+}
+}
 
 #Security groups
 resource "aws_security_group" "sg_app_https" {
@@ -116,12 +126,8 @@ resource "aws_security_group" "sg_db_mysql" {
   }
  }
 
-#Route tables
-#resource "aws_route" "rt_allow" {
-  #count                     = "${length(data.aws_route_tables.rts.ids)}"
-  #route_table_id            = "${data.aws_route_tables.rts.ids[count.index]}"
-  #destination_cidr_block    = "10.0.1.0/22"
-#}
+
+
 
 #Internet gateway
 resource "aws_internet_gateway" "Igw" {
@@ -142,14 +148,12 @@ resource "aws_eip" "eip_nat" {
 # Retrieve all subnet ids, we are assuming the first subnet will be public
 # facing to host the NAT gateway
 
-data "aws_subnet_ids" "GetPublicSubnetDetails" {
-vpc_id = "${aws_vpc.CreateVPC.id}"
-}
 
 resource "aws_nat_gateway" "NATgw" {
   allocation_id = "${aws_eip.eip_nat.id}"
   subnet_id     = "${data.aws_subnet_ids.GetPublicSubnetDetails.ids[0]}"  #the subnet id of the first subnet...assuming it is public.
   depends_on = ["aws_subnet.CreateSub"]
+
 tags = {
    Name = "NatGW"
   }
@@ -161,6 +165,7 @@ resource "aws_route_table" "rt_private" {
     cidr_block = "0.0.0.0/0"
     gateway_id = "${aws_nat_gateway.NATgw.id}"
   }
+
   tags = {
     Name = "rt_private"
   }
@@ -172,12 +177,14 @@ resource "aws_route_table" "rt_public" {
     cidr_block = "0.0.0.0/0"
     gateway_id = "${aws_internet_gateway.Igw.id}"
   }
+
   tags = {
     Name = "rt_public"
   }
 }
   
-resource "aws_route_table_association" "a" {
+resource "aws_route_table_association" "rt_public_association" {  #assuming the public subnet is the first subnet on the list
   subnet_id      = "${data.aws_subnet_ids.GetPublicSubnetDetails.ids[0]}"
-  route_table_id = "${aws_route_table.bar.id}"
+  route_table_id = "${aws_route_table.rt_public.id}"
 }
+
